@@ -13,25 +13,44 @@ const server: net.Server = net.createServer((connection: net.Socket) => {
 //
 server.listen(6379, "127.0.0.1");
 
-const storage: Record<string, string> = {};
+interface StorageValue {
+  value: string;
+  timestamp: number;
+  expiry: string;
+}
+
+const storage: Record<string, StorageValue> = {};
 
 function getValue(data: string): string {
-  const [, , cmd, , key, , value] = data.split("\r\n");
+  const [, , cmd, , key, , value, , , , expiry] = data.split("\r\n");
   if (cmd.toLowerCase() === "echo") {
     return parseResponse(key);
   } else if (cmd.toLowerCase() === "set") {
-    storage[key] = value;
+    storage[key] = { value, expiry: expiry ?? "0", timestamp: Date.now() };
     return `+OK\r\n`;
   } else if (cmd.toLowerCase() === "get") {
-    const value = storage[key];
-    if (!value) {
+    const storageValue = storage[key];
+    if (!storageValue || isExpired(storageValue)) {
       return "$-1\r\n";
     }
-    return parseResponse(value);
+
+    return parseResponse(storageValue.value);
   }
   return `+PONG\r\n`;
 }
 
 function parseResponse(value: string): string {
   return `$${value.length}\r\n${value}\r\n`;
+}
+
+function isExpired(storeValue: StorageValue): boolean {
+  if (storeValue.expiry === "0") {
+    return false;
+  }
+  const currentTime = Date.now();
+  const expiryTime = parseInt(storeValue.expiry);
+  if (currentTime - storeValue.timestamp > expiryTime) {
+    return true;
+  }
+  return false;
 }
