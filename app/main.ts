@@ -22,7 +22,12 @@ interface StorageValue {
 const storage: Record<string, StorageValue> = {};
 
 function getValue(data: string): string {
-  const [, , cmd, , key, , value, , , , expiry] = data.split("\r\n");
+  const dataList = data.split("\r\n");
+  const cmd = dataList[2];
+  const key = dataList[4];
+  const value = dataList[6];
+  const expiry = dataList[10];
+
   switch (cmd.toLowerCase()) {
     case "echo":
       return parseResponse(key);
