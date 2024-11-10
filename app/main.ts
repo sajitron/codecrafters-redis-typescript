@@ -20,6 +20,7 @@ interface StorageValue {
 }
 
 const storage: Record<string, StorageValue> = {};
+const configStorage: Record<string, string> = {};
 
 function getValue(data: string): string {
   const dataList = data.split("\r\n");
@@ -27,6 +28,16 @@ function getValue(data: string): string {
   const key = dataList[4];
   const value = dataList[6];
   const expiry = dataList[10];
+
+  const defaultResponse = `+PONG\r\n`;
+  const emptyResponse = "$-1\r\n";
+  const args = process.argv;
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i].startsWith("--")) {
+      configStorage[args[i].replace("--", "")] = args[i + 1];
+    }
+  }
 
   switch (cmd.toLowerCase()) {
     case "echo":
@@ -37,16 +48,26 @@ function getValue(data: string): string {
     case "get":
       const storageValue = storage[key];
       if (!storageValue || isExpired(storageValue)) {
-        return "$-1\r\n";
+        return emptyResponse;
       }
       return parseResponse(storageValue.value);
+    case "config":
+      if (key.toLowerCase() === "get") {
+        const config = configStorage[value];
+        return config ? convertToRespArray([value, config]) : emptyResponse;
+      }
+      return defaultResponse;
     default:
-      return `+PONG\r\n`;
+      return defaultResponse;
   }
 }
 
 function parseResponse(value: string): string {
   return `$${value.length}\r\n${value}\r\n`;
+}
+
+function convertToRespArray(args: string[]): string {
+  return `*${args.length}\r\n$${args[0].length}\r\n${args[0]}\r\n$${args[1].length}\r\n${args[1]}\r\n`;
 }
 
 function isExpired(storeValue: StorageValue): boolean {
