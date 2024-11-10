@@ -23,20 +23,21 @@ const storage: Record<string, StorageValue> = {};
 
 function getValue(data: string): string {
   const [, , cmd, , key, , value, , , , expiry] = data.split("\r\n");
-  if (cmd.toLowerCase() === "echo") {
-    return parseResponse(key);
-  } else if (cmd.toLowerCase() === "set") {
-    storage[key] = { value, expiry: expiry ?? "0", timestamp: Date.now() };
-    return `+OK\r\n`;
-  } else if (cmd.toLowerCase() === "get") {
-    const storageValue = storage[key];
-    if (!storageValue || isExpired(storageValue)) {
-      return "$-1\r\n";
-    }
-
-    return parseResponse(storageValue.value);
+  switch (cmd.toLowerCase()) {
+    case "echo":
+      return parseResponse(key);
+    case "set":
+      storage[key] = { value, expiry: expiry ?? "0", timestamp: Date.now() };
+      return `+OK\r\n`;
+    case "get":
+      const storageValue = storage[key];
+      if (!storageValue || isExpired(storageValue)) {
+        return "$-1\r\n";
+      }
+      return parseResponse(storageValue.value);
+    default:
+      return `+PONG\r\n`;
   }
-  return `+PONG\r\n`;
 }
 
 function parseResponse(value: string): string {
